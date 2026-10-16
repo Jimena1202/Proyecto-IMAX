@@ -1,0 +1,12 @@
+# Archivos temporales
+*.log
+*.tmp
+__pycache__/
+.env
+
+# Node
+node_modules/
+
+# Python
+venv/
+.venv/
