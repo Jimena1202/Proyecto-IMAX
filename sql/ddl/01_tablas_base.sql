@@ -88,3 +88,35 @@ CREATE TABLE tarifa (
     condiciones TEXT,
     FOREIGN KEY (funcion_id) REFERENCES funcion(id)
 );
+
+-- Promocion
+CREATE TABLE promocion (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    tipo VARCHAR(50) NOT NULL,
+    condiciones TEXT,
+    descuento NUMERIC(10,2) NOT NULL CHECK (descuento >= 0)
+);
+
+-- Transaccion 
+CREATE TABLE transaccion (
+    id SERIAL PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    monto_total NUMERIC(12,2) NOT NULL CHECK (monto_total >= 0),
+    estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+    FOREIGN KEY (usuario_id) REFERENCES usuario(id)
+);
+
+-- Pago
+CREATE TABLE pago (
+    id SERIAL PRIMARY KEY,
+    transaccion_id INT NOT NULL,
+    metodo_pago_id INT NOT NULL,
+    monto NUMERIC(12,2) NOT NULL CHECK (monto >= 0),
+    estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+    referencia VARCHAR(100),
+    FOREIGN KEY (transaccion_id) REFERENCES transaccion(id),
+    FOREIGN KEY (metodo_pago_id) REFERENCES metodo_pago(id)
+);
+
