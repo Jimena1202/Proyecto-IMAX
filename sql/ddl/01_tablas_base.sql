@@ -120,3 +120,30 @@ CREATE TABLE pago (
     FOREIGN KEY (metodo_pago_id) REFERENCES metodo_pago(id)
 );
 
+-- Boleto
+CREATE TABLE boleto (
+    id SERIAL PRIMARY KEY,
+    funcion_id INT NOT NULL,
+    asiento_id INT NOT NULL,
+    usuario_id INT NOT NULL,
+    transaccion_id INT,
+    estado VARCHAR(20) NOT NULL DEFAULT 'reservado',
+    precio_final NUMERIC(10,2) NOT NULL CHECK (precio_final >= 0),
+    FOREIGN KEY (funcion_id) REFERENCES funcion(id),
+    FOREIGN KEY (asiento_id) REFERENCES asiento(id),
+    FOREIGN KEY (usuario_id) REFERENCES usuario(id),
+    FOREIGN KEY (transaccion_id) REFERENCES transaccion(id)
+);
+
+-- QR
+CREATE TABLE qr (
+    id SERIAL PRIMARY KEY,
+    boleto_id INT NOT NULL UNIQUE,
+    codigo VARCHAR(100) NOT NULL UNIQUE,
+    usado BOOLEAN NOT NULL DEFAULT FALSE,
+    fecha_uso TIMESTAMP,
+    FOREIGN KEY (boleto_id) REFERENCES boleto(id)
+);
+
+
+
