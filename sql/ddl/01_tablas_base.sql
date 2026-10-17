@@ -52,3 +52,39 @@ CREATE TABLE sala (
     capacidad INT NOT NULL CHECK (capacidad > 0),
     mapa_config JSONB
 );
+
+-- Asiento
+CREATE TABLE asiento (
+    id SERIAL PRIMARY KEY,
+    sala_id INT NOT NULL,
+    fila VARCHAR(5) NOT NULL,
+    columna INT NOT NULL,
+    zona VARCHAR(50),
+    tipo VARCHAR(30),
+    FOREIGN KEY (sala_id) REFERENCES sala(id),
+    UNIQUE (sala_id, fila, columna)
+);
+
+-- Funcion
+CREATE TABLE funcion (
+    id SERIAL PRIMARY KEY,
+    pelicula_id INT NOT NULL,
+    sala_id INT NOT NULL,
+    fecha_hora_inicio TIMESTAMP NOT NULL,
+    fecha_hora_fin TIMESTAMP NOT NULL,
+    estado VARCHAR(20) NOT NULL DEFAULT 'activa',
+    precio_base NUMERIC(10,2) NOT NULL CHECK (precio_base >= 0),
+    FOREIGN KEY (pelicula_id) REFERENCES pelicula(id),
+    FOREIGN KEY (sala_id) REFERENCES sala(id),
+    CHECK (fecha_hora_fin > fecha_hora_inicio)
+);
+
+-- Tarifa
+CREATE TABLE tarifa (
+    id SERIAL PRIMARY KEY,
+    funcion_id INT NOT NULL,
+    tipo VARCHAR(50) NOT NULL,
+    precio NUMERIC(10,2) NOT NULL CHECK (precio >= 0),
+    condiciones TEXT,
+    FOREIGN KEY (funcion_id) REFERENCES funcion(id)
+);
