@@ -191,3 +191,60 @@ ON qr(codigo);
 -- Búsqueda de transacciones por usuario y fecha
 CREATE INDEX idx_transaccion_usuario_fecha
 ON transaccion(usuario_id, fecha);
+
+-- Transacciones 
+CREATE TABLE transaccion_log (
+    id BIGSERIAL PRIMARY KEY,
+    transaccion_id INT NOT NULL,
+    evento VARCHAR(50) NOT NULL,
+    fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    datos JSONB,
+    FOREIGN KEY (transaccion_id) REFERENCES transaccion(id)
+);
+
+-- Bloqueos y estados de asientos
+CREATE TABLE asiento_auditoria_log (
+    id BIGSERIAL PRIMARY KEY,
+    asiento_id INT NOT NULL,
+    funcion_id INT NOT NULL,
+    usuario_id INT,
+    accion VARCHAR(50) NOT NULL,
+    fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (asiento_id) REFERENCES asiento(id),
+    FOREIGN KEY (funcion_id) REFERENCES funcion(id),
+    FOREIGN KEY (usuario_id) REFERENCES usuario(id)
+);
+
+-- Accesos en puerta
+CREATE TABLE acceso_puerta_log (
+    id BIGSERIAL PRIMARY KEY,
+    boleto_id INT NOT NULL,
+    fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    puerta VARCHAR(50),
+    resultado VARCHAR(30) NOT NULL,
+    operador_id INT,
+    FOREIGN KEY (boleto_id) REFERENCES boleto(id),
+    FOREIGN KEY (operador_id) REFERENCES usuario(id)
+);
+
+-- Auditoría administrativa
+CREATE TABLE admin_operacion_audit (
+    id BIGSERIAL PRIMARY KEY,
+    admin_id INT NOT NULL,
+    accion VARCHAR(100) NOT NULL,
+    fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ip VARCHAR(45),
+    detalles JSONB,
+    FOREIGN KEY (admin_id) REFERENCES usuario(id)
+);
+
+-- Índices auditoría
+CREATE INDEX idx_transaccion_log_fecha ON transaccion_log(fecha);
+CREATE INDEX idx_asiento_auditoria_log_fecha ON asiento_auditoria_log(fecha);
+CREATE INDEX idx_acceso_puerta_log_fecha ON acceso_puerta_log(fecha);
+CREATE INDEX idx_admin_operacion_audit_fecha ON admin_operacion_audit(fecha);
+
+
+
+
+
