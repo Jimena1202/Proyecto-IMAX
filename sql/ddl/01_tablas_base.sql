@@ -164,4 +164,30 @@ ALTER TABLE pago
     ADD CONSTRAINT chk_pago_estado
     CHECK (estado IN ('pendiente', 'aprobado', 'rechazado'));
 
+-- Búsqueda de funciones por película y fecha
+CREATE INDEX idx_funcion_pelicula_fecha
+ON funcion(pelicula_id, fecha_hora_inicio);
 
+-- Búsqueda de funciones por sala y fecha
+CREATE INDEX idx_funcion_sala_fecha
+ON funcion(sala_id, fecha_hora_inicio);
+
+-- Búsqueda de asientos por sala (para mapa)
+CREATE INDEX idx_asiento_sala
+ON asiento(sala_id);
+
+-- Búsqueda de boletos por función y asiento (para disponibilidad)
+CREATE INDEX idx_boleto_funcion_asiento
+ON boleto(funcion_id, asiento_id);
+
+-- Búsqueda de boletos por usuario (para "mis entradas")
+CREATE INDEX idx_boleto_usuario
+ON boleto(usuario_id);
+
+-- Búsqueda de QR por código (para escaneo en puerta)
+CREATE INDEX idx_qr_codigo
+ON qr(codigo);
+
+-- Búsqueda de transacciones por usuario y fecha
+CREATE INDEX idx_transaccion_usuario_fecha
+ON transaccion(usuario_id, fecha);
