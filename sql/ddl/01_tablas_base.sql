@@ -145,5 +145,23 @@ CREATE TABLE qr (
     FOREIGN KEY (boleto_id) REFERENCES boleto(id)
 );
 
+ALTER TABLE boleto
+    ADD CONSTRAINT chk_boleto_precio_positivo
+    CHECK (precio_final > 0);
+
+-- Boleto válido
+ALTER TABLE boleto
+    ADD CONSTRAINT chk_boleto_estado
+    CHECK (estado IN ('reservado', 'pagado', 'cancelado', 'usado'));
+
+-- Transacción válida
+ALTER TABLE transaccion
+    ADD CONSTRAINT chk_transaccion_estado
+    CHECK (estado IN ('pendiente', 'aprobada', 'rechazada', 'cancelada'));
+
+-- Pago válido
+ALTER TABLE pago
+    ADD CONSTRAINT chk_pago_estado
+    CHECK (estado IN ('pendiente', 'aprobado', 'rechazado'));
 
 
