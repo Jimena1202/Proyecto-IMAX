@@ -273,7 +273,51 @@ GRANT SELECT ON transaccion_log TO rol_contador;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO rol_administrador;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO rol_administrador;
 
+ALTER TABLE boleto
+    ADD COLUMN reservado_hasta TIMESTAMP;
+
 CREATE UNIQUE INDEX idx_boleto_asiento_unico
 ON boleto(funcion_id, asiento_id)
 WHERE estado IN ('reservado', 'pagado');
 
+-- Encontrar reservas expiradas
+CREATE INDEX idx_boleto_reservado_hasta
+ON boleto(reservado_hasta)
+WHERE estado = 'reservado';
+
+CREATE FUNCTION fn_bloquear_asiento(
+    p_funcion_id INT,
+    p_asiento_id INT,
+    p_usuario_id INT,
+    p_precio NUMERIC
+) RETURNS INT AS $$
+DECLARE
+    v_boleto_id INT;
+BEGIN
+    INSERT INTO boleto (
+        funcion_id, asiento_id, usuario_id, estado, precio_final, reservado_hasta
+    ) VALUES (
+        p_funcion_id, p_asiento_id, p_usuario_id, 'reservado', p_precio,
+        CURRENT_TIMESTAMP + INTERVAL '2 minutes'
+    )
+    RETURNING id INTO v_boleto_id;
+
+    RETURN v_boleto_id;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE FUNCTION fn_liberar_asientos_expirados()
+RETURNS INT AS $$
+DECLARE
+    v_count INT;
+BEGIN
+    UPDATE boleto
+    SET estado = 'cancelado'
+    WHERE estado = 'reservado'
+      AND reservado_hasta < CURRENT_TIMESTAMP;
+
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RETURN v_count;
+END;
+$$ LANGUAGE plpgsql;
