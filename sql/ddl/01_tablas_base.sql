@@ -273,5 +273,7 @@ GRANT SELECT ON transaccion_log TO rol_contador;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO rol_administrador;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO rol_administrador;
 
-
+CREATE UNIQUE INDEX idx_boleto_asiento_unico
+ON boleto(funcion_id, asiento_id)
+WHERE estado IN ('reservado', 'pagado');
 
