@@ -244,7 +244,34 @@ CREATE INDEX idx_asiento_auditoria_log_fecha ON asiento_auditoria_log(fecha);
 CREATE INDEX idx_acceso_puerta_log_fecha ON acceso_puerta_log(fecha);
 CREATE INDEX idx_admin_operacion_audit_fecha ON admin_operacion_audit(fecha);
 
+-- Roles
+CREATE ROLE rol_cliente NOLOGIN;
+CREATE ROLE rol_taquillero NOLOGIN;
+CREATE ROLE rol_operador_puerta NOLOGIN;
+CREATE ROLE rol_contador NOLOGIN;
+CREATE ROLE rol_administrador NOLOGIN;
 
+-- Lectura de cartelera, compra
+GRANT SELECT ON pelicula, funcion, sala, asiento, tarifa TO rol_cliente;
+GRANT SELECT, INSERT ON transaccion, pago, boleto TO rol_cliente;
+GRANT SELECT ON qr TO rol_cliente;
+
+-- Venta presencial
+GRANT SELECT ON pelicula, funcion, sala, asiento, tarifa TO rol_taquillero;
+GRANT SELECT, INSERT ON transaccion, pago, boleto TO rol_taquillero;
+GRANT SELECT ON qr TO rol_taquillero;
+
+-- Validar QR
+GRANT SELECT ON boleto, qr TO rol_operador_puerta;
+GRANT INSERT ON acceso_puerta_log TO rol_operador_puerta;
+
+-- Reportes financieros
+GRANT SELECT ON transaccion, pago, boleto, metodo_pago TO rol_contador;
+GRANT SELECT ON transaccion_log TO rol_contador;
+
+-- Control total
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO rol_administrador;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO rol_administrador;
 
 
 
