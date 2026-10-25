@@ -321,3 +321,81 @@ BEGIN
     RETURN v_count;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE FUNCTION fn_confirmar_compra(
+    p_transaccion_id INT
+) RETURNS INT AS $$
+DECLARE
+    v_boleto RECORD;
+    v_qr_count INT := 0;
+    v_codigo VARCHAR(100);
+BEGIN
+    --Marcar como aprobada
+    UPDATE transaccion
+    SET estado = 'aprobada'
+    WHERE id = p_transaccion_id AND estado = 'pendiente';
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Transacción % no existe o no está pendiente', p_transaccion_id;
+    END IF;
+
+    -- Pagarlo y crear QR
+    FOR v_boleto IN
+        SELECT id FROM boleto
+        WHERE transaccion_id = p_transaccion_id
+          AND estado = 'reservado'
+    LOOP
+        UPDATE boleto
+        SET estado = 'pagado',
+            reservado_hasta = NULL
+        WHERE id = v_boleto.id;
+
+        -- Código único
+        v_codigo := 'IMAX-' || p_transaccion_id || '-' || v_boleto.id || '-' ||
+                    substr(md5(random()::text), 1, 12);
+
+        INSERT INTO qr (boleto_id, codigo, usado)
+        VALUES (v_boleto.id, v_codigo, FALSE);
+
+        v_qr_count := v_qr_count + 1;
+    END LOOP;
+
+    -- Registrar log
+    INSERT INTO transaccion_log (transaccion_id, evento, datos)
+    VALUES (p_transaccion_id, 'COMPRA_APROBADA',
+            jsonb_build_object('boletos_qr', v_qr_count));
+
+    RETURN v_qr_count;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION fn_cancelar_compra(
+    p_transaccion_id INT,
+    p_motivo VARCHAR DEFAULT 'PAGO_RECHAZADO'
+) RETURNS INT AS $$
+DECLARE
+    v_count INT;
+BEGIN
+    -- Cancelar transacción
+    UPDATE transaccion
+    SET estado = 'rechazada'
+    WHERE id = p_transaccion_id AND estado = 'pendiente';
+
+    -- Liberar boletos reservados
+    UPDATE boleto
+    SET estado = 'cancelado',
+        reservado_hasta = NULL
+    WHERE transaccion_id = p_transaccion_id
+      AND estado = 'reservado';
+
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+
+    -- Log
+    INSERT INTO transaccion_log (transaccion_id, evento, datos)
+    VALUES (p_transaccion_id, 'COMPRA_RECHAZADA',
+            jsonb_build_object('motivo', p_motivo, 'asientos_liberados', v_count));
+
+    RETURN v_count;
+END;
+$$ LANGUAGE plpgsql;
