@@ -116,11 +116,11 @@ class AppIMAX(ctk.CTk):
 
         self.botones_nav = {}
         modulos = [
-            ("Cartelera"),
-            ("Comprar"),
-            ("Mis Boletos"),
-            ("Puerta"),
-            ("Admin"),
+            ("Cartelera", "🎥"),
+            ("Comprar", "🎟️"),
+            ("Mis Boletos", "🎫"),
+            ("Puerta", "🚪"),
+            ("Admin", "📊"),
         ]
         for i, (nombre, icono) in enumerate(modulos, start=2):
             bt = ctk.CTkButton(
