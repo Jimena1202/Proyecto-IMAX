@@ -399,3 +399,60 @@ BEGIN
     RETURN v_count;
 END;
 $$ LANGUAGE plpgsql;
+
+
+CREATE FUNCTION trg_fn_auditoria_boleto()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        INSERT INTO asiento_auditoria_log
+            (asiento_id, funcion_id, usuario_id, accion, fecha)
+        VALUES
+            (NEW.asiento_id, NEW.funcion_id, NEW.usuario_id, 'BLOQUEO', CURRENT_TIMESTAMP);
+        RETURN NEW;
+    ELSIF TG_OP = 'UPDATE' THEN
+        IF NEW.estado = 'pagado' AND OLD.estado = 'reservado' THEN
+            INSERT INTO asiento_auditoria_log
+                (asiento_id, funcion_id, usuario_id, accion, fecha)
+            VALUES
+                (NEW.asiento_id, NEW.funcion_id, NEW.usuario_id, 'COMPRA', CURRENT_TIMESTAMP);
+        ELSIF NEW.estado = 'cancelado' AND OLD.estado = 'reservado' THEN
+            INSERT INTO asiento_auditoria_log
+                (asiento_id, funcion_id, usuario_id, accion, fecha)
+            VALUES
+                (NEW.asiento_id, NEW.funcion_id, NEW.usuario_id, 'LIBERACION', CURRENT_TIMESTAMP);
+        END IF;
+        RETURN NEW;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_auditoria_boleto
+AFTER INSERT OR UPDATE ON boleto
+FOR EACH ROW EXECUTE FUNCTION trg_fn_auditoria_boleto();
+
+CREATE FUNCTION trg_fn_proteger_sala()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ventas INT;
+BEGIN
+    SELECT COUNT(*) INTO v_ventas
+    FROM boleto b
+    JOIN funcion f ON f.id = b.funcion_id
+    WHERE f.sala_id = OLD.id
+      AND b.estado IN ('reservado', 'pagado');
+
+    IF v_ventas > 0 THEN
+        RAISE EXCEPTION
+        'No se puede modificar la sala % porque tiene % boletos activos',
+        OLD.id, v_ventas;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_proteger_sala
+BEFORE UPDATE OR DELETE ON sala
+FOR EACH ROW EXECUTE FUNCTION trg_fn_proteger_sala();
