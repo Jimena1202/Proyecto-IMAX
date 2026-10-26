@@ -370,7 +370,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION fn_cancelar_compra(
+CREATE FUNCTION fn_cancelar_compra(
     p_transaccion_id INT,
     p_motivo VARCHAR DEFAULT 'PAGO_RECHAZADO'
 ) RETURNS INT AS $$
@@ -456,3 +456,72 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_proteger_sala
 BEFORE UPDATE OR DELETE ON sala
 FOR EACH ROW EXECUTE FUNCTION trg_fn_proteger_sala();
+
+CREATE FUNCTION fn_check_in_qr(
+    p_codigo VARCHAR,
+    p_operador_id INT
+) RETURNS TABLE(resultado VARCHAR, mensaje TEXT) AS $$
+DECLARE
+    v_qr RECORD;
+    v_funcion RECORD;
+    v_ahora TIMESTAMP := CURRENT_TIMESTAMP;
+BEGIN
+    -- Si existe el QR
+    SELECT * INTO v_qr FROM qr WHERE codigo = p_codigo;
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 'RECHAZADO'::VARCHAR, 'QR no encontrado'::TEXT;
+        RETURN;
+    END IF;
+
+    -- Ya se uso
+    IF v_qr.usado THEN
+        INSERT INTO acceso_puerta_log (boleto_id, resultado, operador_id)
+        VALUES (v_qr.boleto_id, 'RECHAZADO_DUPLICADO', p_operador_id);
+        RETURN QUERY SELECT 'RECHAZADO'::VARCHAR, 'Entrada ya utilizada'::TEXT;
+        RETURN;
+    END IF;
+
+    -- Verificar horario
+    SELECT f.* INTO v_funcion
+    FROM boleto b JOIN funcion f ON f.id = b.funcion_id
+    WHERE b.id = v_qr.boleto_id;
+
+    IF v_ahora < v_funcion.fecha_hora_inicio - INTERVAL '30 minutes'
+       OR v_ahora > v_funcion.fecha_hora_inicio + INTERVAL '15 minutes' THEN
+        INSERT INTO acceso_puerta_log (boleto_id, resultado, operador_id)
+        VALUES (v_qr.boleto_id, 'RECHAZADO_HORARIO', p_operador_id);
+        RETURN QUERY SELECT 'RECHAZADO'::VARCHAR, 'Fuera del horario de tolerancia'::TEXT;
+        RETURN;
+    END IF;
+
+    -- Todo ok
+    UPDATE qr SET usado = TRUE, fecha_uso = v_ahora WHERE id = v_qr.id;
+    INSERT INTO acceso_puerta_log (boleto_id, resultado, operador_id)
+    VALUES (v_qr.boleto_id, 'EXITOSO', p_operador_id);
+    RETURN QUERY SELECT 'APROBADO'::VARCHAR, 'Acceso permitido'::TEXT;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION fn_bloquear_asiento(
+    p_funcion_id INT,
+    p_asiento_id INT,
+    p_usuario_id INT,
+    p_precio NUMERIC,
+    p_transaccion_id INT DEFAULT NULL
+) RETURNS INT AS $$
+DECLARE
+    v_boleto_id INT;
+BEGIN
+    INSERT INTO boleto (
+        funcion_id, asiento_id, usuario_id, transaccion_id,
+        estado, precio_final, reservado_hasta
+    ) VALUES (
+        p_funcion_id, p_asiento_id, p_usuario_id, p_transaccion_id,
+        'reservado', p_precio,
+        CURRENT_TIMESTAMP + INTERVAL '2 minutes'
+    )
+    RETURNING id INTO v_boleto_id;
+    RETURN v_boleto_id;
+END;
+$$ LANGUAGE plpgsql;
