@@ -525,3 +525,49 @@ BEGIN
     RETURN v_boleto_id;
 END;
 $$ LANGUAGE plpgsql;
+
+
+-- Roles y usuarios
+INSERT INTO rol (nombre) VALUES ('cliente'), ('operador'), ('admin') ON CONFLICT DO NOTHING;
+
+INSERT INTO usuario (nombre, email, password_hash) 
+VALUES ('Cliente Demo', 'cliente@imax.com', '123') ON CONFLICT DO NOTHING;
+INSERT INTO usuario (nombre, email, password_hash) 
+VALUES ('Operador Puerta', 'operador@imax.com', '123') ON CONFLICT DO NOTHING;
+
+INSERT INTO usuario_rol (usuario_id, rol_id) 
+SELECT u.id, r.id FROM usuario u, rol r WHERE u.email='cliente@imax.com' AND r.nombre='cliente' ON CONFLICT DO NOTHING;
+INSERT INTO usuario_rol (usuario_id, rol_id) 
+SELECT u.id, r.id FROM usuario u, rol r WHERE u.email='operador@imax.com' AND r.nombre='operador' ON CONFLICT DO NOTHING;
+
+-- metodos de pago
+INSERT INTO metodo_pago (nombre, tipo) VALUES ('Tarjeta', 'tarjeta'), ('PayPal', 'wallet') ON CONFLICT DO NOTHING;
+
+-- película, sala, asientos y función
+DO $$
+DECLARE
+    v_sala_id INT; v_peli_id INT; v_fila TEXT; v_col INT;
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM sala WHERE nombre='Sala IMAX 1') THEN
+        INSERT INTO sala (nombre, ubicacion, capacidad) VALUES ('Sala IMAX 1', 'Los Angeles', 30) RETURNING id INTO v_sala_id;
+        FOR v_fila IN SELECT unnest(ARRAY['A','B','C']) LOOP
+            FOR v_col IN 1..10 LOOP
+                INSERT INTO asiento (sala_id, fila, columna, zona, tipo) VALUES (v_sala_id, v_fila, v_col, 'General', 'estandar');
+            END LOOP;
+        END LOOP;
+    ELSE
+        SELECT id INTO v_sala_id FROM sala WHERE nombre='Sala IMAX 1';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pelicula WHERE titulo='Dune 3') THEN
+        INSERT INTO pelicula (titulo, sinopsis, clasificacion, duracion_min, genero, activa) 
+        VALUES ('Dune 3', 'La saga continúa', 'PG-13', 160, 'Sci-Fi', TRUE) RETURNING id INTO v_peli_id;
+    ELSE
+        SELECT id INTO v_peli_id FROM pelicula WHERE titulo='Dune 3';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM funcion) THEN
+        INSERT INTO funcion (pelicula_id, sala_id, fecha_hora_inicio, fecha_hora_fin, precio_base) 
+        VALUES (v_peli_id, v_sala_id, NOW() + INTERVAL '10 minutes', NOW() + INTERVAL '3 hours', 15.00);
+    END IF;
+END $$;
